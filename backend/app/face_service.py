@@ -124,3 +124,46 @@ def deserialize_embeddings(serialized: str) -> str:
                     return parsed[0]
                 avg_vector = np.mean(vectors, axis=0)
                 norm = np.linalg.norm(avg_vector)
+                if norm > 0:
+                    avg_vector /= norm
+                return json.dumps(avg_vector.tolist())
+            
+            elif isinstance(parsed[0], list):
+                if len(parsed) == 1:
+                    return json.dumps(parsed[0])
+                vectors = [np.array(emb, dtype="float32") for emb in parsed]
+                avg_vector = np.mean(vectors, axis=0)
+                norm = np.linalg.norm(avg_vector)
+                if norm > 0:
+                    avg_vector /= norm
+                return json.dumps(avg_vector.tolist())
+            else:
+                return json.dumps(parsed[0])
+        else:
+            return serialized
+    except json.JSONDecodeError:
+        return serialized
+
+def best_match(
+    probe_vector: str, candidates: Iterable[Tuple[int, str]]
+) -> Tuple[Optional[int], float]:
+    best_id: Optional[int] = None
+    best_score = 0.0
+    
+    # DEBUG: Uncomment this to see scores in your terminal!
+    # print(f"\n--- Checking {len(list(candidates))} candidates ---")
+    
+    for candidate_id, candidate_vector in candidates:
+        score = cosine_similarity(probe_vector, candidate_vector)
+        
+        # DEBUG: See what scores you are getting
+        # print(f"ID {candidate_id}: Score {score:.4f}")
+        
+        if score > best_score:
+            best_id = candidate_id
+            best_score = score
+            
+    return best_id, best_score
+
+def get_model_info() -> str:
+    return "SFace (MobileNetV2) + YuNet"
