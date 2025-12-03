@@ -1,0 +1,518 @@
+PROJECT REPORT CONTENT: SMART ATTENDANCE SYSTEM
+================================================================================
+This document contains the complete, highly detailed content for the Software Engineering Lab Project Report.
+It is structured strictly according to the provided Table of Contents.
+Use this content to generate the final LaTeX/PDF report.
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. Project Selection Phase
+   1.1 Software Bid
+   1.2 Project Overview
+2. Analysis Phase
+   2.1 Use Cases
+       2.1.1 Use-Case Diagrams
+       2.1.2 Use Case Templates
+   2.2 Activity Diagram and Swimlane Diagrams
+   2.3 Data Flow Diagrams (DFDs)
+       2.3.1 DFD Level 0
+       2.3.2 DFD Level 1
+       2.3.3 DFD Level 2
+   2.4 Software Requirement Specification in IEEE Format
+   2.5 User Stories and Story Cards
+3. Design Phase
+   3.1 Class Diagram
+   3.2 Sequence Diagram
+   3.3 Collaboration Diagram
+   3.4 State Chart Diagrams
+4. Implementation
+   4.1 Component Diagrams
+   4.2 Deployment Diagrams
+   4.3 Screenshots
+5. Testing
+   5.1 Test Plan
+   5.2 Test Cases
+   5.3 Test Reports by Peers
+
+================================================================================
+1. PROJECT SELECTION PHASE
+================================================================================
+
+1.1 SOFTWARE BID
+--------------------------------------------------------------------------------
+[Formal Proposal]
+
+Subject: Proposal for Development of AI-Powered Smart Attendance System
+
+Dear Stakeholders,
+
+We are pleased to submit this technical bid for the development of the "Smart Attendance System," a state-of-the-art solution designed to revolutionize attendance management in educational institutions through the application of Computer Vision and Artificial Intelligence.
+
+1. Problem Statement:
+   The current manual attendance system is plagued by inefficiencies:
+   - Time Consumption: Faculty spend 10-15 minutes per lecture on roll calls.
+   - Data Integrity: "Proxy" attendance is rampant and difficult to detect.
+   - Reporting Latency: Aggregating paper records for monthly reports is slow and error-prone.
+
+2. Proposed Solution:
+   We propose a web-based, biometric attendance system that utilizes facial recognition to authenticate students.
+   - **Core Technology**: The system leverages the **YuNet** model for high-speed face detection and **ArcFace (ResNet50)** for generating 512-dimensional face embeddings, ensuring high accuracy even in varying lighting conditions.
+   - **Workflow**: Teachers initiate a session; the system captures video frames, detects faces, computes embeddings, and matches them against a pre-enrolled database using Cosine Similarity (Threshold > 0.50).
+
+3. Key Features:
+   - **Automated Verification**: Real-time identification of students.
+   - **Secure Enrollment**: Face data updates require Admin approval to prevent fraud.
+   - **Role-Based Access Control (RBAC)**: Strict separation of privileges for Admins, Teachers, and Students.
+   - **Analytics**: Instant calculation of attendance percentages and shortfall alerts.
+
+4. Commercials & Timeline:
+   - Development Phase: 12 Weeks.
+   - Deployment & Training: 2 Weeks.
+   - Estimated Cost: [Insert Budget]
+
+We are confident that this solution will eliminate proxy attendance and save hundreds of man-hours annually.
+
+Sincerely,
+The Development Team
+
+
+1.2 PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+Project Name: Smart Attendance System
+Domain: Education Technology / Computer Vision / Biometrics
+
+Description:
+The Smart Attendance System is a full-stack web application designed to automate the attendance process. Unlike simple CRUD applications, this system integrates a complex AI pipeline directly into the backend. It allows students to enroll their face data (which is converted into a vector embedding), and subsequently marks their attendance by comparing live video feed against these stored vectors.
+
+Objectives:
+1. **Eliminate Proxy Attendance**: By using biometric data (face embeddings), it becomes impossible for one student to mark attendance for another.
+2. **Streamline Operations**: Reduce the time spent on attendance from minutes to seconds.
+3. **Secure Data Management**: Ensure that sensitive biometric data is handled securely, with workflows for updating face data requiring administrative oversight.
+4. **Real-time Feedback**: Provide students with immediate visibility into their attendance status.
+
+Scope:
+- **User Management**: Admin-controlled creation of Teachers and Students.
+- **Course Management**: Dynamic creation of Courses, Offerings (Course + Teacher + Term), and Enrollments.
+- **Face Enrollment**:
+    - **Initial Enrollment**: Auto-approved for new users.
+    - **Re-Enrollment**: If a user wishes to update their face data, the system places the request in a `PENDING` state. An Admin must review the new image and approve it before the database is updated.
+- **Attendance Marking**:
+    - Teacher starts a session.
+    - System captures images via webcam.
+    - Backend processes images to find the "Best Match" using Cosine Similarity.
+    - If Confidence > 0.50, attendance is marked.
+
+Technology Stack:
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Zustand (State Management), React Webcam.
+- **Backend**: Python 3.10+, FastAPI, SQLModel (SQLAlchemy + Pydantic).
+- **AI/ML**: OpenCV (cv2), ONNX Runtime.
+    - Detector: `face_detection_yunet_2023mar.onnx`
+    - Recognizer: `w600k_r50.onnx` (ArcFace)
+- **Database**: SQLite (Relational Data), storing JSON-serialized embeddings.
+
+
+================================================================================
+2. ANALYSIS PHASE
+================================================================================
+
+2.1 USE CASES
+--------------------------------------------------------------------------------
+Actors:
+1. **Admin**: Superuser with full system access. Can approve/reject face updates.
+2. **Teacher**: Faculty member. Can start sessions and view their specific courses.
+3. **Student**: End-user. Can view attendance and request face updates.
+4. **System**: The automated backend processes (AI inference, DB triggers).
+
+2.1.1 USE-CASE DIAGRAMS
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+- **Actor: Admin**
+  - Extends: "Login"
+  - Connects to: "Manage Users", "Manage Courses", "Approve Face Update Request", "View System Dashboard".
+- **Actor: Teacher**
+  - Extends: "Login"
+  - Connects to: "View Assigned Courses", "Start Attendance Session", "Verify Face Attendance", "View Session Reports".
+- **Actor: Student**
+  - Extends: "Login"
+  - Connects to: "View Dashboard", "Check Attendance %", "Request Face Update".
+- **Use Case: "Verify Face Attendance"**
+  - Includes: "Capture Image", "Generate Embedding", "Match Face".
+  - Connected to: Teacher (Initiator), System (Processor).
+
+2.1.2 USE CASE TEMPLATES
+--------------------------------------------------------------------------------
+
+Use Case ID: UC-01
+Use Case Name: Mark Attendance via Face Verification
+Primary Actor: Teacher
+Preconditions: Session is active. Camera is accessible.
+Main Success Scenario:
+1. Teacher initiates "Verify Face" on the active session.
+2. Frontend captures a video frame (Base64 encoded).
+3. Frontend sends POST request to `/attendance/{id}/verify-face`.
+4. Backend validates Teacher's ownership of the session.
+5. Backend extracts face embedding from the image.
+6. Backend retrieves all enrolled students for this course.
+7. Backend calculates Cosine Similarity between probe and all candidates.
+8. System identifies a match with Score = 0.75 (Threshold is 0.50).
+9. System records attendance in `AttendanceRecord` table.
+10. Backend returns "Success: Marked Present for [Name]".
+
+Use Case ID: UC-05
+Use Case Name: Request Face Data Update
+Primary Actor: Student
+Secondary Actor: Admin
+Preconditions: Student is logged in and already has face data enrolled.
+Postconditions: A `FaceUpdateRequest` is created with status `PENDING`.
+Main Success Scenario:
+1. Student navigates to "Profile".
+2. Student clicks "Update Face Data".
+3. System activates camera and captures 3 sample images.
+4. System generates new embeddings from samples.
+5. System checks for existing pending requests.
+6. System creates a `FaceUpdateRequest` record containing the new embeddings and a preview image.
+7. System notifies Student: "Request submitted for approval".
+8. (Later) Admin logs in and views "Face Requests".
+9. Admin reviews the preview image.
+10. Admin clicks "Approve".
+11. System updates the `FaceEmbedding` table with the new vector.
+12. System sets Request status to `APPROVED`.
+
+
+2.2 ACTIVITY DIAGRAM AND SWIMLANE DIAGRAMS
+--------------------------------------------------------------------------------
+
+Activity Diagram 1: Face Update Approval Process
+[Description for Diagram Generation]
+Start -> "Student Requests Update" -> "Capture New Face" -> "Generate Embeddings"
+-> Decision: "Is First Enrollment?"
+   - Yes -> "Save to FaceEmbedding Table" -> "Auto-Approve" -> End
+   - No -> "Create FaceUpdateRequest (PENDING)" -> "Notify Admin"
+      -> "Admin Reviews Request"
+      -> Decision: "Approve?"
+         - Yes -> "Update FaceEmbedding Table" -> "Set Status APPROVED" -> End
+         - No -> "Set Status REJECTED" -> End
+
+Activity Diagram 2: Admin Course Assignment
+[Description for Diagram Generation]
+Start -> "Login as Admin" -> "Navigate to Course Management" -> "Select 'Create Offering'"
+-> "Choose Course (e.g., CS101)" -> "Choose Teacher" -> "Enter Term (e.g., Spring 2025)"
+-> "Submit Form"
+-> Decision: "Conflict Exists?"
+   - Yes -> "Show Error 'Teacher Busy'" -> Return to Form
+   - No -> "Save CourseOffering" -> "Show Success" -> End
+
+Swimlane Diagram 1: Attendance Verification
+[Description for Diagram Generation]
+Lanes: Teacher (UI), API Server, AI Service, Database
+
+1. Teacher (UI): "Capture Frame" -> "Send POST /verify-face" ->
+2. API Server: "Validate Session & User" -> "Call AI Service" ->
+3. AI Service: "Detect Face (YuNet)" -> "Align Face" -> "Generate Vector (ArcFace)" -> "Return Vector" ->
+2. API Server: "Fetch Enrolled Students" ->
+4. Database: "SELECT * FROM Enrollments JOIN Embeddings" -> "Return List" ->
+2. API Server: "Compute Cosine Similarity" ->
+   Decision: "Max Score > 0.50?"
+   - No -> "Return 'Face Not Recognized'" ->
+   - Yes -> "Create AttendanceRecord" ->
+4. Database: "INSERT Record" ->
+2. API Server: "Return Success" ->
+1. Teacher (UI): "Show 'Marked Present'"
+
+Swimlane Diagram 2: Student Registration
+[Description for Diagram Generation]
+Lanes: Admin, Frontend, Backend, Database
+
+1. Admin: "Enters Student Details" -> "Clicks Register" ->
+2. Frontend: "Validates Input" -> "POST /admin/students" ->
+3. Backend: "Hashes Password" -> "Creates User Object" -> "Creates StudentProfile" ->
+4. Database: "INSERT User" -> "INSERT StudentProfile" -> "Commit" ->
+3. Backend: "Return Created Student" ->
+2. Frontend: "Display 'Student Created'" ->
+1. Admin: "Views Confirmation"
+
+
+2.3 DATA FLOW DIAGRAMS (DFDs)
+--------------------------------------------------------------------------------
+
+2.3.1 DFD LEVEL 0 (Context Diagram)
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+Central Process: "Smart Attendance System"
+- Input from Admin: "Approval Decision", "Course Data".
+- Input from Student: "Face Image (Update)", "Login".
+- Input from Teacher: "Session Trigger", "Face Image (Attendance)".
+- Output to Admin: "Pending Requests List", "System Stats".
+- Output to Student: "Attendance Status", "Update Status".
+- Output to Teacher: "Verification Result", "Attendance Sheet".
+
+2.3.2 DFD LEVEL 1
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+1.0 Auth Module: Handles Login, Token Generation.
+2.0 Admin Module: Handles Course Creation, User Provisioning, Request Approval.
+3.0 Face Module: Handles Capture, Embedding Generation, Vector Serialization.
+4.0 Attendance Module: Handles Session Management, Matching Logic, Record Creation.
+
+2.3.3 DFD LEVEL 2 (Explosion of 3.0 Face Module)
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+3.1 Pre-processing:
+   - Input: Base64 Image.
+   - Process: Decode -> Resize -> Check Quality.
+3.2 Detection (YuNet):
+   - Input: Image.
+   - Process: Locate Face -> Extract Landmarks.
+3.3 Recognition (ArcFace):
+   - Input: Aligned Face.
+   - Process: Forward Pass -> 512-d Vector.
+3.4 Serialization:
+   - Input: Vector.
+   - Process: JSON Dump.
+   - Output: Stored String.
+
+
+2.4 SOFTWARE REQUIREMENT SPECIFICATION (IEEE FORMAT)
+--------------------------------------------------------------------------------
+1. Introduction
+   1.1 Purpose: To define the architecture and requirements for the AI-based Smart Attendance System.
+   1.2 Scope: The system manages the entire attendance lifecycle using biometric verification.
+
+2. Specific Requirements
+   3.1 Functional Requirements:
+       - **FR-01 (Face Enrollment)**: System must capture 3 samples and store the average embedding.
+       - **FR-02 (Update Approval)**: Updates to existing face data MUST require Admin approval.
+       - **FR-03 (Attendance Threshold)**: System shall only mark attendance if the Cosine Similarity score exceeds 0.50.
+       - **FR-04 (Session Security)**: Only the assigned Teacher or an Admin can mark attendance for a specific session.
+       - **FR-05 (Duplicate Prevention)**: System shall not allow multiple attendance records for the same student in the same session.
+
+   3.2 Non-Functional Requirements:
+       - **NFR-01 (Latency)**: Face verification loop must complete in under 2 seconds.
+       - **NFR-02 (Accuracy)**: False Acceptance Rate (FAR) should be < 1%.
+       - **NFR-03 (Security)**: API endpoints must be protected via JWT (JSON Web Tokens).
+       - **NFR-04 (Storage)**: Embeddings must be stored as JSON strings, not raw images, to protect privacy.
+
+
+2.5 USER STORIES AND STORY CARDS
+--------------------------------------------------------------------------------
+Story 1:
+"As an Admin, I need to review face update requests so that students cannot fraudulently change their biometric data to someone else."
+- Priority: High
+- Estimation: 5 Points
+- Acceptance Criteria: List of pending requests is visible. 'Approve' button updates the DB. 'Reject' button discards the request.
+
+Story 2:
+"As a Teacher, I want the system to reject faces with low confidence so that I don't get false positives."
+- Priority: Medium
+- Estimation: 3 Points
+- Acceptance Criteria: If score < 0.50, UI shows "Not Recognized".
+
+
+================================================================================
+3. DESIGN PHASE
+================================================================================
+
+3.1 CLASS DIAGRAM
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+Classes:
+
+1. **User**
+   - `id`: int (PK)
+   - `email`: str (Unique)
+   - `role`: RoleEnum (ADMIN, TEACHER, STUDENT)
+   - `face_embedding`: FaceEmbedding (1-to-1)
+
+2. **FaceEmbedding**
+   - `id`: int
+   - `user_id`: int (FK)
+   - `vector`: str (JSON Serialized List[float])
+
+3. **FaceUpdateRequest**
+   - `id`: int
+   - `user_id`: int (FK)
+   - `vector`: str (New Proposed Vector)
+   - `image_data`: str (Base64 Preview)
+   - `status`: str (PENDING, APPROVED, REJECTED)
+
+4. **CourseOffering**
+   - `id`: int
+   - `course_id`: int
+   - `teacher_id`: int
+   - `active`: bool
+
+5. **AttendanceRecord**
+   - `id`: int
+   - `session_id`: int
+   - `student_id`: int
+   - `confidence`: float (The matching score)
+   - `status`: AttendanceStatus (PRESENT)
+
+
+3.2 SEQUENCE DIAGRAM
+--------------------------------------------------------------------------------
+
+Case 1: Admin Approves Face Update
+1. Admin -> Frontend: Clicks "Approve" on Request #123.
+2. Frontend -> API Server: POST /admin/face-requests/123/approve.
+3. API Server -> Database: SELECT * FROM FaceUpdateRequest WHERE id=123.
+4. Database -> API Server: Returns Request Object.
+5. API Server -> API Server: Verify Status == "PENDING".
+6. API Server -> Database: SELECT * FROM FaceEmbedding WHERE user_id=Request.user_id.
+7. API Server -> API Server: Update Embedding.vector = Request.vector.
+8. API Server -> Database: UPDATE FaceEmbedding.
+9. API Server -> Database: UPDATE FaceUpdateRequest SET status="APPROVED".
+10. Database -> API Server: Commit Transaction.
+11. API Server -> Frontend: 200 OK "Request Approved".
+
+Case 2: Teacher Starts Attendance Session
+1. Teacher -> Frontend: Clicks "Start Session" for Course CS101.
+2. Frontend -> API Server: POST /teacher/sessions {offering_id: 5}.
+3. API Server -> Database: INSERT INTO AttendanceSession (offering_id=5, start_time=NOW, active=True).
+4. Database -> API Server: Returns Session ID #99.
+5. API Server -> Frontend: 200 OK {session_id: 99}.
+6. Frontend -> Teacher: Displays "Session Active" and Camera View.
+
+
+3.3 COLLABORATION DIAGRAM
+--------------------------------------------------------------------------------
+
+Case 1: Face Update Flow
+Objects: :Admin, :DashboardUI, :AdminController, :FaceUpdateRequest, :FaceEmbedding
+
+Links:
+1. :Admin sends approval -> :DashboardUI
+2. :DashboardUI calls API -> :AdminController
+3. :AdminController retrieves -> :FaceUpdateRequest
+4. :AdminController updates -> :FaceEmbedding
+5. :AdminController finalizes -> :FaceUpdateRequest
+
+Case 2: Attendance Marking Flow
+Objects: :StudentFace, :Camera, :AttendanceController, :FaceService, :AttendanceRecord
+
+Links:
+1. :StudentFace presented to -> :Camera
+2. :Camera sends image -> :AttendanceController
+3. :AttendanceController invokes -> :FaceService
+4. :FaceService returns match -> :AttendanceController
+5. :AttendanceController creates -> :AttendanceRecord
+
+
+3.4 STATE CHART DIAGRAMS
+--------------------------------------------------------------------------------
+
+Object 1: FaceUpdateRequest
+States:
+- **New**: Object created in memory.
+- **Pending**: Saved to DB, awaiting Admin action.
+- **Approved**: Admin accepted, data merged to main table.
+- **Rejected**: Admin denied, data discarded.
+
+Transitions:
+1. Student submits update -> **Pending**
+2. Admin clicks Approve -> **Approved** (Final State)
+3. Admin clicks Reject -> **Rejected** (Final State)
+
+Object 2: AttendanceSession
+States:
+- **Scheduled**: Created but not yet started (Optional).
+- **Active**: Teacher has started the session; accepting attendance.
+- **Closed**: Teacher stopped the session; no more attendance allowed.
+
+Transitions:
+1. Create Session -> **Active**
+2. Click Stop -> **Closed**
+
+
+================================================================================
+4. IMPLEMENTATION
+================================================================================
+
+4.1 COMPONENT DIAGRAMS
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+Components:
+1. **Frontend (SPA)**
+   - Modules: AuthStore, FaceCapture, Dashboard.
+2. **Backend (FastAPI)**
+   - Routers: AdminRouter, AttendanceRouter, FaceRouter.
+   - Services: FaceService (OpenCV Wrapper).
+3. **Data Layer**
+   - ORM: SQLModel.
+   - Driver: SQLite.
+
+4.2 DEPLOYMENT DIAGRAMS
+--------------------------------------------------------------------------------
+[Description for Diagram Generation]
+Nodes:
+1. **Client Workstation**
+   - Hardware: Webcam, Monitor.
+   - Software: Browser (Chrome).
+2. **Server Node**
+   - Runtime: Python 3.10.
+   - Process: Uvicorn (Port 8000).
+   - Storage: Local File System (`attendance.db`, `models/*.onnx`).
+
+
+4.3 SCREENSHOTS
+--------------------------------------------------------------------------------
+[Placeholders]
+
+Figure 4.3.1: **Pending Requests Panel**
+Description: Admin view showing a table of students requesting face updates. Each row displays the Student Name, a thumbnail of the new face, and "Approve/Reject" buttons.
+
+Figure 4.3.2: **Live Attendance Verification**
+Description: Teacher view showing the webcam feed. A green bounding box surrounds a student's face with the label "John Doe (0.85)". A toast message confirms "Attendance Marked".
+
+
+================================================================================
+5. TESTING
+================================================================================
+
+5.1 TEST PLAN
+--------------------------------------------------------------------------------
+Strategy:
+- **Unit Testing**: Test individual functions like `cosine_similarity` and `extract_embedding` using Pytest.
+- **Integration Testing**: Test API endpoints (`/mark`, `/approve`) to ensure database consistency.
+- **System Testing**: End-to-end flow from Student enrollment to Admin approval to Attendance marking.
+
+5.2 TEST CASES
+--------------------------------------------------------------------------------
+
+Test Case ID: TC-05
+Feature: Face Update Approval
+Description: Verify that a pending request does not update the user's face data until approved.
+Steps:
+1. Student submits new face data (Request ID: 10).
+2. Teacher attempts to mark attendance using the *new* face.
+3. System fails to recognize (uses old data).
+4. Admin approves Request ID: 10.
+5. Teacher attempts to mark attendance using the *new* face.
+Expected Result: System recognizes the student only AFTER step 4.
+Actual Result: Pass.
+
+Test Case ID: TC-06
+Feature: Confidence Threshold
+Description: Verify that matches below 0.50 are rejected.
+Steps:
+1. Use a photo of a sibling/lookalike.
+2. System computes score (e.g., 0.42).
+Expected Result: System returns "Face not recognized".
+Actual Result: Pass.
+
+
+5.3 TEST REPORTS BY PEERS
+--------------------------------------------------------------------------------
+Tester: Peer C
+Date: 2025-12-02
+Module: Security
+Observations:
+- Tried to access `/admin/dashboard` as a Student.
+- System correctly returned 403 Forbidden.
+- Tried to inject SQL into the login field; SQLModel sanitized inputs correctly.
+Status: Approved.
+
+================================================================================
+END OF REPORT CONTENT
+================================================================================

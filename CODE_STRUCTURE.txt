@@ -1,0 +1,143 @@
+CODEBASE STRUCTURE & TECHNICAL DOCUMENTATION
+
+This document provides a comprehensive technical deep-dive into the Smart Attendance System. It is intended for developers who need to understand the inner workings of the application, including database schemas, API architecture, and AI implementation details.
+
+================================================================================
+ROOT DIRECTORY
+================================================================================
+- backend/       : Python/FastAPI backend.
+- frontend/      : React/TypeScript frontend.
+- docs/          : Project documentation.
+- README.md      : High-level overview and setup guide.
+- TESTING_GUIDE.md : Manual testing procedures.
+
+
+================================================================================
+BACKEND (backend/)
+================================================================================
+The backend is a RESTful API built with FastAPI. It handles data persistence, authentication, and the core face recognition logic.
+
+1. CORE APPLICATION (backend/app/)
+--------------------------------------------------------------------------------
+
+main.py
+  - Entry Point: Initializes the FastAPI app.
+  - Middleware: Configures CORS to allow requests from the frontend.
+  - Startup Events: Calls init_db() to create tables and ensure_curriculum_courses() to seed initial course data.
+  - Router Registration: Includes routers from app.routers.
+
+models.py (Database Schema)
+  Defines the SQLModel classes that map to SQLite tables.
+  - User Management:
+      - User: Base user entity (email, password_hash, role).
+      - RoleEnum: ADMIN, TEACHER, STUDENT.
+      - AdminLogin, TeacherLogin, StudentLogin: Role-specific login tables.
+      - TeacherProfile: Links to User, stores department.
+      - StudentProfile: Links to User, stores branch and year.
+  - Academic Structure:
+      - Course: Metadata (Code, Name, Branch, Year).
+      - CourseOffering: A specific instance of a course taught by a teacher in a term.
+      - Enrollment: Links Students to CourseOfferings.
+  - Attendance:
+      - AttendanceSession: A specific class session (date, time).
+      - AttendanceRecord: Individual student attendance for a session (status, confidence).
+  - AI Data:
+      - FaceEmbedding: Stores the 512-dimensional vector for a user's face.
+
+face_service.py (AI Engine)
+  Handles all computer vision tasks using OpenCV and ONNX Runtime.
+  - Models:
+      - YuNet: Face detection (locates faces in an image).
+      - ArcFace (ResNet50): Face recognition (generates embeddings).
+  - Key Functions:
+      - extract_embedding(image_data): Decodes base64 image -> Detects face -> Aligns face -> Generates embedding.
+      - cosine_similarity(vec_a, vec_b): Computes similarity between two face vectors.
+      - best_match(probe, candidates): Finds the closest matching user from a list of candidates.
+
+auth.py
+  - Hashing: Uses passlib (bcrypt) for password hashing.
+  - Tokens: Uses python-jose to generate JWT access tokens.
+  - Dependencies: get_current_user ensures routes are protected.
+
+database.py
+  - Engine: Creates the SQLite engine (attendance.db).
+  - Session: Provides a dependency get_session for database transactions.
+
+
+2. API ROUTERS (backend/app/routers/)
+--------------------------------------------------------------------------------
+- auth.py: /auth/login endpoint. Validates credentials and returns JWT.
+- admin.py: Endpoints for creating teachers, students, and courses.
+- teacher.py: Endpoints for teachers to view their courses and sessions.
+- student.py: Endpoints for students to view their attendance.
+- attendance.py:
+    - POST /mark: Accepts an image, runs face recognition, and marks attendance.
+    - GET /session/{id}: Retrieves attendance list for a session.
+- face.py: Endpoints for registering face data.
+
+
+================================================================================
+FRONTEND (frontend/)
+================================================================================
+The frontend is a Single Page Application (SPA) built with React, TypeScript, and Vite.
+
+1. SOURCE CODE (frontend/src/)
+--------------------------------------------------------------------------------
+
+main.tsx & App.tsx
+  - Routing: Uses react-router-dom to define routes.
+  - Protection: Wraps protected routes in RequireAuth components to ensure only logged-in users with the correct role can access them.
+
+store/ (State Management)
+  - auth.ts: Uses Zustand with persist middleware.
+      - State: token, role, fullName, mustChangePassword.
+      - Actions: setAuth, logout.
+      - Persistence: Saves state to localStorage (key: ucs503-auth).
+
+api/
+  - client.ts: Configures a global Axios instance.
+      - Base URL: Points to the backend (default: http://localhost:8000).
+      - Interceptors: Automatically attaches the JWT token from the auth store to every request.
+
+pages/
+  - LoginPage.tsx: Handles user login. Redirects based on role.
+  - AdminDashboard.tsx: Admin controls (User management, Course assignment).
+  - TeacherDashboard.tsx:
+      - Lists assigned courses.
+      - Allows creating new attendance sessions.
+      - Displays live attendance stats.
+  - StudentDashboard.tsx: Shows student's enrollment and attendance percentage.
+  - AttendancePage.tsx:
+      - Uses react-webcam to capture video.
+      - Sends frames to the backend for recognition.
+
+components/
+  - UI Library: Custom components styled with Tailwind CSS.
+      - Button, Input, Card, Modal.
+      - Layout: Provides the sidebar and header structure.
+
+
+================================================================================
+DATA FLOW EXAMPLES
+================================================================================
+
+1. LOGIN FLOW
+  1. User enters credentials on LoginPage.
+  2. Frontend calls POST /auth/login.
+  3. Backend verifies hash, generates JWT.
+  4. Frontend receives JWT, stores it in useAuthStore (localStorage).
+  5. Axios interceptor is updated to include Authorization: Bearer <token>.
+  6. User is redirected to their dashboard.
+
+2. MARKING ATTENDANCE
+  1. Teacher starts a session.
+  2. Student stands in front of the camera on AttendancePage.
+  3. Frontend captures a frame and sends it to POST /attendance/mark.
+  4. Backend:
+      - Decodes image.
+      - Detects face (YuNet).
+      - Generates embedding (ArcFace).
+      - Compares with all student embeddings in the database.
+      - If match found (> threshold), creates AttendanceRecord.
+  5. Backend returns "Marked Present for [Name]".
+  6. Frontend updates the UI to show the success message.
