@@ -12,7 +12,7 @@ import onnxruntime as ort
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "..", "models")
 YUNET_PATH = os.path.join(MODELS_DIR, "face_detection_yunet_2023mar.onnx")
-ARCFACE_PATH = os.path.join(MODELS_DIR, "w600k_r50.onnx")
+ARCFACE_PATH = os.path.join(MODELS_DIR, "face_recognition_sface_2021dec.onnx")
 
 # ArcFace Standard Landmarks (112x112)
 ARCFACE_DST = np.array(
